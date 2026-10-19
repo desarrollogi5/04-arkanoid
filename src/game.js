@@ -192,6 +192,18 @@ function updateBall(dt) {
   if (b.y > CANVAS_H) loseBall();
 }
 
+function checkLevelCleared() {
+  if (state.bricks.some((br) => br.alive)) return;
+  state.levelIndex++;
+  if (state.levelIndex >= LEVELS.length) {
+    state.screen = 'victory';
+    return;
+  }
+  buildBricks();
+  stickBallToPaddle();
+  state.screen = 'ready';
+}
+
 function loseBall() {
   state.lives--;
   if (state.lives <= 0) {
@@ -203,7 +215,21 @@ function loseBall() {
   state.screen = 'ready';
 }
 
+function restartGame() {
+  state.score = 0;
+  state.lives = INITIAL_LIVES;
+  state.levelIndex = 0;
+  buildBricks();
+  resetPaddle();
+  stickBallToPaddle();
+  state.screen = 'ready';
+}
+
 function update(dt) {
+  if (state.screen === 'gameover' || state.screen === 'victory') {
+    if (consumeSpace()) restartGame();
+    return;
+  }
   if (state.screen === 'start') {
     if (consumeSpace()) {
       audioEnabled = true;
@@ -217,11 +243,13 @@ function update(dt) {
   if (state.screen === 'ready' || state.screen === 'playing') {
     updatePaddle(dt);
     updateExplosions();
+    if (state.screen === 'playing') checkLevelCleared();
   }
   if (state.screen === 'ready') {
     stickBallToPaddle();
     if (consumeSpace()) launchBall();
   } else if (state.screen === 'playing') {
+    consumeSpace(); // descarta pulsaciones sueltas para que no disparen acciones al cambiar de pantalla
     updateBall(dt);
   }
 }
@@ -244,9 +272,28 @@ function drawStartScreen() {
   drawCenteredText('Pulsa Espacio', CANVAS_H / 2 + 30, 28, '#ffd24a');
 }
 
+function drawHud() {
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px monospace';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Puntaje: ${state.score}`, 16, 28);
+  ctx.textAlign = 'center';
+  ctx.fillText(`Nivel: ${state.levelIndex + 1}`, CANVAS_W / 2, 28);
+  ctx.textAlign = 'right';
+  ctx.fillText(`Vidas: ${state.lives}`, CANVAS_W - 16, 28);
+}
+
+function drawVictoryScreen() {
+  drawCenteredText('¡VICTORIA!', CANVAS_H / 2 - 40, 64, '#4aff7a');
+  drawCenteredText(`Puntaje: ${state.score}`, CANVAS_H / 2 + 20, 28, '#ffffff');
+  drawCenteredText('Pulsa Espacio para reiniciar', CANVAS_H / 2 + 70, 22, '#ffd24a');
+}
+
 function drawGameOverScreen() {
   drawCenteredText('GAME OVER', CANVAS_H / 2 - 40, 64, '#ff4a4a');
   drawCenteredText(`Puntaje: ${state.score}`, CANVAS_H / 2 + 20, 28, '#ffffff');
+  drawCenteredText('Pulsa Espacio para reiniciar', CANVAS_H / 2 + 70, 22, '#ffd24a');
 }
 
 function drawBricks() {
@@ -281,8 +328,11 @@ function draw() {
     drawBricks();
     drawPaddle();
     drawBall();
+    drawHud();
   } else if (state.screen === 'gameover') {
     drawGameOverScreen();
+  } else if (state.screen === 'victory') {
+    drawVictoryScreen();
   }
 }
 
